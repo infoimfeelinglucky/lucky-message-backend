@@ -1,43 +1,86 @@
-const express = require('express');
-const cors = require('cors');
-const bodyParser = require('body-parser');
-const { OpenAI } = require('openai');
-require('dotenv').config();
+import express from 'express';
+import dotenv from 'dotenv';
+import cors from 'cors';
+import { OpenAI } from 'openai';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import fs from 'fs';
 
+dotenv.config();
 const app = express();
-const port = 3000;
-
 app.use(cors());
-app.use(bodyParser.json());
+app.use(express.static('public'));
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-async function generateAIMessage() {
-  const messageType = ['joke', 'fortune', 'motivation'][Math.floor(Math.random() * 3)];
-  const prompt = `Give me a unique, never repeated ${messageType}.`;
+// Paths for JSON file storage
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const usedMessagesFile = path.join(__dirname, 'usedMessages.json');
 
-  const response = await openai.chat.completions.create({
-    model: 'gpt-4', // or 'gpt-3.5-turbo' if you're using that
-    messages: [{ role: 'user', content: prompt }],
-    temperature: 0.9,
-    frequency_penalty: 0.6,
-  });
-
-  return response.choices[0].message.content.trim();
+// Load used messages from file
+let usedMessages = [];
+try {
+  const data = fs.readFileSync(usedMessagesFile, 'utf8');
+  usedMessages = JSON.parse(data);
+} catch (err) {
+  console.error('Error reading usedMessages.json:', err);
 }
+
+async function generateUniqueMessage() {
+  let attempts = 0;
+  let message;
+
+  const prompt = `Give me only ONE message that is either:
+- A joke (funny, can be old or new)
+- A fortune (like a fortune cookie)
+- A motivational message (inspiring, thought-provoking, or a famous quote)
+
+Do not repeat any previous messages until all possibilities are exhausted.
+Respond with ONLY the message, no explanations, no categories.`;
+
+  while (attempts < 10) {
+    const response = await openai.chat.completions.create({
+      messages: [{ role: 'user', content: prompt }],
+      model: 'gpt-4',
+    });
+
+    message = response.choices[0].message.content.trim();
+
+    if (!usedMessages.includes(message)) {
+      usedMessages.push(message);
+      fs.writeFileSync(usedMessagesFile, JSON.stringify(usedMessages, null, 2));
+      return message;
+    }
+
+    attempts++;
+  }
+
+  return "Here's a new message for you!";
+}
+
+let currentMessage = null;
 
 app.get('/get-ai-message', async (req, res) => {
   try {
-    const aiMessage = await generateAIMessage();
-    res.json({ message: aiMessage });
+    if (!currentMessage) {
+      currentMessage = await generateUniqueMessage();
+    }
+    res.json({ message: currentMessage });
   } catch (error) {
-    console.error('Error fetching AI message:', error);
-    res.status(500).json({ error: 'Failed to fetch AI message' });
+    console.error(error);
+    res.status(500).json({ error: 'Error generating message' });
   }
 });
 
-app.listen(port, () => {
-  console.log(`Server is running at http://localhost:${port}`);
+app.get('/reset-message', (req, res) => {
+  currentMessage = null;
+  res.json({ status: 'Message reset' });
 });
+
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'thank-you.html'));
+});
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
