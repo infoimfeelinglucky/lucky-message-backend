@@ -1,126 +1,150 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" >
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>I'm Feeling Lucky...</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Lucky Message</title>
   <style>
+    @import url('https://fonts.googleapis.com/css2?family=Merriweather&family=Montserrat&display=swap');
+
     body {
-      background-color: white;
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      height: 100vh;
+      background: white;
       margin: 0;
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
       flex-direction: column;
-      color: #2c3e50;
+      font-family: 'Montserrat', sans-serif;
+      color: #222;
+      padding: 20px;
+      text-align: center;
     }
 
     #loading {
-      font-size: 2.5rem;
-      font-weight: 600;
-      font-family: 'Montserrat', sans-serif;
+      font-size: 2rem; /* smaller size */
+      font-weight: 700;
+      font-family: 'Merriweather', serif; /* Elegant serif font */
+      letter-spacing: 0.12em;
+      user-select: none;
+      animation: slotColors 2s linear infinite;
+      display: flex;
+      align-items: center;
+      white-space: nowrap;
     }
 
-    .dots::after {
-      content: '';
-      display: inline-block;
-      width: 1em;
-      text-align: left;
-      animation: dots 1s steps(3, end) infinite;
-    }
-
-    @keyframes dots {
-      0%, 20% {
-        content: '';
-      }
-      40% {
-        content: '.';
-      }
-      60% {
-        content: '..';
-      }
-      80%, 100% {
-        content: '...';
-      }
+    #dots {
+      font-weight: 700;
+      margin-left: 6px;
+      animation: blink 1.2s step-start infinite;
     }
 
     #message {
-      font-size: 1.7rem;
-      max-width: 600px;
-      text-align: center;
+      max-width: 700px;
+      font-size: 1.8rem;
+      font-family: 'Merriweather', serif; /* readable elegant serif */
+      font-style: normal;
       line-height: 1.5;
-      font-weight: 400;
-      opacity: 0;
-      transition: opacity 0.5s ease;
+      white-space: pre-wrap;
+      margin-top: 40px;
+      display: none;
+      min-height: 5em;
+      position: relative;
+      text-align: center;
     }
 
-    .blinking-cursor {
-      font-weight: 100;
-      font-size: 1.5rem;
-      color: #2c3e50;
-      animation: blink 1s infinite;
-      opacity: 0;
+    /* The blinking cursor element */
+    #cursor {
+      display: inline-block;
+      width: 3px;
+      background-color: #222;
+      margin-left: 2px;
+      animation: blink 1s step-start infinite;
+      vertical-align: bottom;
+      height: 1.2em;
     }
 
     @keyframes blink {
-      0% { opacity: 1; }
-      50% { opacity: 0; }
-      100% { opacity: 1; }
+      0%, 50% { opacity: 1; }
+      51%, 100% { opacity: 0; }
+    }
+
+    @keyframes slotColors {
+      0% { color: #e74c3c; }    /* Red */
+      20% { color: #f1c40f; }   /* Yellow */
+      40% { color: #2ecc71; }   /* Green */
+      60% { color: #3498db; }   /* Blue */
+      80% { color: #9b59b6; }   /* Purple */
+      100% { color: #e74c3c; }  /* Red again */
     }
   </style>
 </head>
 <body>
-  <div id="loading" class="dots">I'm Feeling Lucky</div>
-  <p id="message"></p>
-  <span class="blinking-cursor">|</span>
+  <div id="loading">I'm Feeling Lucky<span id="dots">...</span></div>
+  <div id="message"></div>
 
   <script>
-    async function fetchAiMessage() {
+    // Get query param 'id'
+    function getQueryParam(name) {
+      const urlParams = new URLSearchParams(window.location.search);
+      return urlParams.get(name);
+    }
+
+    // Fetch AI message from backend
+    async function fetchMessage(id) {
       try {
-        const response = await fetch('/get-ai-message');
-        const data = await response.json();
-        return data.message;
-      } catch (error) {
-        console.error('Error fetching AI message:', error);
-        return "Something went wrong. Please try again later.";
+        const res = await fetch(`/message?id=${encodeURIComponent(id)}`);
+        if (!res.ok) throw new Error('Failed to fetch message');
+        return (await res.json()).message;
+      } catch (e) {
+        return '⚠️ Sorry, could not load your lucky message.';
       }
     }
 
-    async function typeMessage(message) {
-      const loadingDiv = document.getElementById('loading');
-      const messageElement = document.getElementById('message');
-      const cursor = document.querySelector('.blinking-cursor');
+    // Typing effect with cursor following text
+    async function typeText(element, text, delay = 40) {
+      element.textContent = '';
 
-      // Hide loading text
-      loadingDiv.style.display = 'none';
+      // Create a span for the cursor
+      const cursor = document.createElement('span');
+      cursor.id = 'cursor';
+      element.appendChild(cursor);
 
-      // Show message area
-      messageElement.style.opacity = 1;
-      cursor.style.opacity = 1;
-
-      let i = 0;
-      const speed = 50;
-
-      function type() {
-        if (i < message.length) {
-          messageElement.textContent += message.charAt(i);
-          i++;
-          setTimeout(type, speed);
-        } else {
-          // Hide cursor when done
-          cursor.style.opacity = 0;
-        }
+      for (let i = 0; i < text.length; i++) {
+        // Insert next character before cursor
+        cursor.insertAdjacentText('beforebegin', text[i]);
+        await new Promise(r => setTimeout(r, delay));
       }
 
-      type();
+      // Remove cursor after typing
+      cursor.remove();
     }
 
-    (async () => {
-      const message = await fetchAiMessage();
-      await typeMessage(message);
-    })();
+    async function main() {
+      const loadingEl = document.getElementById('loading');
+      const messageEl = document.getElementById('message');
+      const id = getQueryParam('id');
+
+      if (!id) {
+        loadingEl.textContent = '⚠️ Missing ID in the URL.';
+        return;
+      }
+
+      // Show loading text for 3 seconds with color animation & blinking dots
+      await new Promise(r => setTimeout(r, 3000));
+
+      // Hide loading, show message container
+      loadingEl.style.display = 'none';
+      messageEl.style.display = 'block';
+
+      // Fetch the AI message
+      const message = await fetchMessage(id);
+
+      // Type it out with cursor following
+      await typeText(messageEl, message);
+    }
+
+    main();
   </script>
 </body>
 </html>
