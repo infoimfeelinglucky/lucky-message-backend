@@ -7,22 +7,22 @@
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Merriweather&family=Montserrat&display=swap');
 
-    body {
-      background: white;
+    html, body {
       margin: 0;
-      height: 100vh;
+      height: 100%;
+      background: white;
+      font-family: 'Montserrat', sans-serif;
+      color: #222;
       display: flex;
       justify-content: center;
       align-items: center;
-      flex-direction: column;
-      font-family: 'Montserrat', sans-serif;
-      color: #222;
-      padding: 20px;
       text-align: center;
+      flex-direction: column;
+      padding: 20px;
     }
 
     #loading {
-      font-size: 2rem; /* smaller size */
+      font-size: 1.6rem; /* smaller size */
       font-weight: 700;
       font-family: 'Merriweather', serif; /* Elegant serif font */
       letter-spacing: 0.12em;
@@ -41,7 +41,7 @@
 
     #message {
       max-width: 700px;
-      font-size: 1.8rem;
+      font-size: 1.5rem;
       font-family: 'Merriweather', serif; /* readable elegant serif */
       font-style: normal;
       line-height: 1.5;
@@ -51,6 +51,8 @@
       min-height: 5em;
       position: relative;
       text-align: center;
+      margin-left: auto;
+      margin-right: auto;
     }
 
     /* The blinking cursor element */
@@ -93,7 +95,8 @@
     // Fetch AI message from backend
     async function fetchMessage(id) {
       try {
-        const res = await fetch(`/message?id=${encodeURIComponent(id)}`);
+        // Adjusted path to the new API route
+        const res = await fetch(`/api/generate-message?id=${encodeURIComponent(id)}`);
         if (!res.ok) throw new Error('Failed to fetch message');
         return (await res.json()).message;
       } catch (e) {
